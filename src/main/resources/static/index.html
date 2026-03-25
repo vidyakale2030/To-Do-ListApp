@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Advanced To Do List</title>
+    <meta charset="UTF-8">
+
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body{
+            background: linear-gradient(135deg,#667eea,#764ba2);
+            height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+        }
+
+        .container{
+            background:white;
+            width:350px;
+            height:500px;
+            padding:20px;
+            border-radius:15px;
+            box-shadow:0 10px 25px rgba(0,0,0,0.2);
+            overflow-y:auto;
+        }
+
+        h2{
+            text-align:center;
+            margin-bottom:20px;
+        }
+
+        .input-section{
+            display:flex;
+            gap:10px;
+            margin-bottom:20px;
+        }
+
+        input{
+            flex:1;
+            padding:8px;
+            border-radius:5px;
+            border:1px solid #ccc;
+        }
+
+        button{
+            padding:6px 10px;
+            border:none;
+            border-radius:5px;
+            cursor:pointer;
+            color:white;
+        }
+
+        .add-btn{
+            background:#667eea;
+        }
+
+        .add-btn:hover{
+            background:#5563c1;
+        }
+
+        .delete{
+            background:red;
+        }
+
+        .status{
+            background:green;
+        }
+
+        li{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:8px;
+            margin-top:10px;
+            background:#f5f5f5;
+            border-radius:8px;
+            width: 100%;
+        }
+
+        .completed{
+            text-decoration:line-through;
+            color:gray;
+            background:#e0e0e0;
+        }
+
+        .btn-group{
+            display:flex;
+            gap:5px;
+        }
+
+        /* ✅ Popup fixed */
+        .popup{
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #4CAF50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            display: none;
+            animation: fadeIn 0.5s;
+            z-index: 1000;
+        }
+
+        @keyframes fadeIn {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>My To Do List</h2>
+
+    <div class="input-section">
+        <input type="text" id="taskInput" placeholder="Enter new task">
+        <button class="add-btn" onclick="addTask()">Add</button>
+    </div>
+
+    <ul id="taskList"></ul>
+</div>
+
+<!-- ✅ Popup -->
+<div id="popup" class="popup">Message</div>
+
+<script>
+
+    window.onload = function() {
+        loadTasks();
+    };
+
+    // ✅ Load tasks from backend
+    function loadTasks() {
+        fetch("http://localhost:8080/tasks")
+        .then(res => res.json())
+        .then(data => {
+            let list = document.getElementById("taskList");
+            list.innerHTML = "";
+
+            data.forEach(task => {
+                addTaskToUI(task);
+            });
+        })
+        .catch(() => {
+            showPopup("Backend not running ❌");
+        });
+    }
+
+    // ✅ Add task
+    function addTask() {
+        let input = document.getElementById("taskInput");
+        let taskText = input.value.trim();
+
+        if(taskText === ""){
+            showPopup("Enter task ❌");
+            return;
+        }
+
+        fetch("http://localhost:8080/add", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: "title=" + encodeURIComponent(taskText)
+        })
+        .then(res => res.text())
+        .then(data => {
+            showPopup(data);
+            loadTasks();
+            input.value = "";
+        });
+    }
+
+    // ✅ Show task in UI
+    function addTaskToUI(task) {
+        let li = document.createElement("li");
+
+        if(task.status && task.status.toLowerCase() === "Completed"){
+            li.classList.add("completed");
+        }
+
+        li.innerHTML = `
+            <span>${task.title}</span>
+            <div class="btn-group">
+                <button class="status" onclick="toggleStatus(${task.id})">✔</button>
+                <button class="delete" onclick="deleteTask(${task.id})">❌</button>
+            </div>
+        `;
+
+        document.getElementById("taskList").appendChild(li);
+    }
+
+    // ✅ Delete task
+    function deleteTask(id) {
+        fetch("http://localhost:8080/delete/" + id, {
+            method: "DELETE"
+        })
+        .then(() => {
+            showPopup("Deleted 🗑");
+            loadTasks();
+        });
+    }
+
+    // ✅ Toggle status
+    function toggleStatus(id) {
+        fetch("http://localhost:8080/update/" + id, {
+            method: "PUT"
+        })
+        .then(res => res.text())
+         .then(data => {
+         console.log(data);
+         showPopup(data);
+         loadTasks();
+         })
+         .catch(() => {
+         showPopup("Error ❌");
+        });
+    }
+
+    // ✅ Popup function
+    function showPopup(message) {
+        let popup = document.getElementById("popup");
+        popup.innerText = message;
+        popup.style.display = "block";
+
+        setTimeout(() => {
+            popup.style.display = "none";
+        }, 2000);
+    }
+
+</script>
+
+</body>
+</html>
